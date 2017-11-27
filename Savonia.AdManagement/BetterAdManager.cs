@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.DirectoryServices.AccountManagement;
+using System.DirectoryServices;
 
 namespace Savonia.AdManagement
 {
@@ -51,12 +52,67 @@ namespace Savonia.AdManagement
                 throw new ArgumentException($"User \"{user.Username}\" not found on AD.");
             }
 
-            // Päivitetään ad-objektin tiedot ( esimerkissä vain Title )
-            AdUser.Title = user.Title;
-            // + muut tarvittavat arrtibuutit
+            AdUser.SamAccountName = user.Username;
+            AdUser.GivenName = user.Name;
+            AdUser.Surname = user.Surname;
+            AdUser.EmailAddress = user.Email;
+            AdUser.Enabled = user.IsEnabled;
 
             // tallennetaan muutokset
             AdUser.Save();
+        }
+
+        public void ResetPassword(String userName, String password)
+        {
+            var user = FindUserByUsername(userName);
+
+            user.SetPassword(password);
+
+            user.Save();
+        }
+
+        public bool AddUserToGroup(string sUser, string sGroup)
+        {
+
+            PrincipalContext Context = new PrincipalContext(
+                    ContextType.Domain,
+                    _config.Domain,
+                    "CN=UG_Employee,OU=UserGroups,OU=DE,DC=ALUENIMI3,DC=LOCAL",
+                    ContextOptions.Negotiate,
+                    _config.Username,
+                    _config.Password);
+
+            SavoniaUserPrincipal User = FindUserByUsername(sUser);
+            GroupPrincipal Group = GroupPrincipal.FindByIdentity(Context, sGroup);
+
+            foreach (Principal Member in Group.GetMembers(true))
+            {
+                if(Member.SamAccountName == sUser)
+                {
+                    return false;
+                }
+            }
+
+            Group.Members.Add(User);
+            Group.Save();
+            return true;
+        }
+
+        public void AddUser(SavoniaUserObject userObject) {
+
+            var context = GetSearchRoot();
+            
+            SavoniaUserPrincipal up = new SavoniaUserPrincipal(context);
+            
+            up.SamAccountName = userObject.Username;
+            up.GivenName = userObject.Name;
+            up.Surname = userObject.Surname;
+            up.DisplayName = userObject.Name + " " + userObject.Surname;
+            up.EmailAddress = userObject.Email;
+            up.Enabled = userObject.IsEnabled;
+            up.SetPassword(userObject.Password);
+
+            up.Save();
         }
 
         public SavoniaUserObject FindUser(string username)
@@ -70,7 +126,8 @@ namespace Savonia.AdManagement
             su.Path = ((System.DirectoryServices.DirectoryEntry)user.GetUnderlyingObject()).Path;
             su.Title = user.Title;
             su.Username = user.SamAccountName;
-
+            su.Name = user.GivenName;
+            su.Surname = user.Surname;
             user.Dispose();
             return su;
         }
@@ -81,7 +138,7 @@ namespace Savonia.AdManagement
             // search model
             SavoniaUserPrincipal up = new SavoniaUserPrincipal(context);
             up.SamAccountName = username;
-
+            
             // search
             PrincipalSearcher search = new PrincipalSearcher(up);
             SavoniaUserPrincipal result = (SavoniaUserPrincipal)search.FindOne();
@@ -115,5 +172,6 @@ namespace Savonia.AdManagement
             }
             return context;
         }
+
     }
 }

@@ -11,10 +11,14 @@ namespace Savonia.AdManagement
         public string Path { get; set; }
         public string Dn { get; set; }
 
+        public string Name { get; set; }
+        public string Surname { get; set; }
         public string Username { get; set; }
         public string DisplayName { get; set; }
         public string Title { get; set; }
         public string Email { get; set; }
+
+        public string Password { get; set; }
 
         public bool IsEnabled { get; set; }
 
